@@ -1,5 +1,5 @@
-import { ServiceInstance, ServiceRegistry } from './registry.ts';
-import { LoadBalancer, RoundRobinLoadBalancer } from './load-balancer.ts';
+import { ServiceInstance, ServiceRegistry } from './registry';
+import { LoadBalancer, RoundRobinLoadBalancer } from './load-balancer';
 
 export interface ServiceDiscoveryConfig {
   registry?: ServiceRegistry;

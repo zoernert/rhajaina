@@ -31,7 +31,7 @@ export class QdrantConnection implements DatabaseConnection {
       });
 
       // Test connection by getting cluster info
-      await this.client.getClusterInfo();
+      await this.client.healthCheck();
       logger.info('Qdrant connected successfully');
     } catch (error) {
       logger.error('Qdrant connection failed:', error);
@@ -48,7 +48,7 @@ export class QdrantConnection implements DatabaseConnection {
   async healthCheck(): Promise<boolean> {
     try {
       if (!this.client) return false;
-      await this.client.getClusterInfo();
+      await this.client.healthCheck();
       return true;
     } catch (error) {
       logger.error('Qdrant health check failed:', error);

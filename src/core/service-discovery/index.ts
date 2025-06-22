@@ -1,8 +1,8 @@
-export { ServiceRegistry, ServiceInstance, ServiceRegistryConfig } from './registry.js';
-export { ServiceDiscoveryClient, ServiceDiscoveryConfig } from './client.js';
-export { LoadBalancer, RoundRobinLoadBalancer, RandomLoadBalancer, WeightedLoadBalancer } from './load-balancer.js';
-export { HealthChecker, HealthCheckConfig } from './health-checker.js';
-export { ServiceRegistration, ServiceRegistrationConfig, RegisterService } from './service-registration.js';
+export type { ServiceRegistry, ServiceInstance, ServiceRegistryConfig } from './registry';
+export type { ServiceDiscoveryClient, ServiceDiscoveryConfig } from './client';
+export type { LoadBalancer, RoundRobinLoadBalancer, RandomLoadBalancer, WeightedLoadBalancer } from './load-balancer';
+export type { HealthChecker, HealthCheckConfig } from './health-checker';
+export type { ServiceRegistration, ServiceRegistrationConfig, RegisterService } from './service-registration';
 
 // Default configuration
 export const DEFAULT_SERVICE_DISCOVERY_CONFIG = {

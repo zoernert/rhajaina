@@ -289,17 +289,5 @@ export const ErrorHandler = {
 };
 
 // Export all error types for convenience
-export {
-  ValidationError,
-  AuthenticationError,
-  AuthorizationError,
-  NotFoundError,
-  ConflictError,
-  DatabaseError,
-  ExternalAPIError,
-  RateLimitError,
-  FileError,
-  NetworkError
-};
 
 export default AppError;

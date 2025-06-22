@@ -18,7 +18,7 @@ export class RedisConnection implements DatabaseConnection {
         host: this.config.host,
         port: this.config.port,
         db: this.config.database ? parseInt(this.config.database) : 0,
-        retryDelayOnFailover: 100,
+        
         enableOfflineQueue: false,
         maxRetriesPerRequest: 3,
       });
