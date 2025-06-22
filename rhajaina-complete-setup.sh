@@ -143,7 +143,7 @@ create_package_json() {
     "dev": "docker-compose -f docker-compose.dev.yml up",
     "dev:down": "docker-compose -f docker-compose.dev.yml down",
     "dev:logs": "docker-compose -f docker-compose.dev.yml logs -f",
-    "setup": "./scripts/setup-dev.sh",
+    "setup": "npm install && ./scripts/setup-dev.sh",
     "milestone:status": "node scripts/milestone-tracker.js status",
     "milestone:start": "node scripts/milestone-tracker.js start",
     "milestone:complete": "node scripts/milestone-tracker.js complete",
@@ -179,7 +179,9 @@ create_package_json() {
     "@typescript-eslint/parser": "^6.14.0",
     "prettier": "^3.1.1",
     "nodemon": "^3.0.2",
-    "supertest": "^6.3.3"
+    "supertest": "^6.3.3",
+    "mongodb": "^6.8.0",
+    "redis": "^4.6.14"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -463,6 +465,54 @@ class MilestoneTracker {
     await fs.writeFile(this.trackerFile, JSON.stringify(tracker, null, 2));
   }
 
+  findMilestone(tracker, milestoneId) {
+    for (const phase of Object.values(tracker.phases)) {
+      const milestone = phase.milestones.find(m => m.id === milestoneId);
+      if (milestone) return milestone;
+    }
+    return null;
+  }
+
+  checkDependencies(tracker, milestone) {
+    const uncompletedDeps = [];
+    if (milestone.dependencies) {
+      for (const depId of milestone.dependencies) {
+        const dep = this.findMilestone(tracker, depId);
+        if (!dep || dep.status !== 'completed') {
+          uncompletedDeps.push(depId);
+        }
+      }
+    }
+    return uncompletedDeps;
+  }
+
+  findNextMilestone(tracker) {
+    for (const phase of Object.values(tracker.phases)) {
+      const nextMilestone = phase.milestones.find(m => m.status === 'not_started');
+      if (nextMilestone) {
+        const uncompletedDeps = this.checkDependencies(tracker, nextMilestone);
+        if (uncompletedDeps.length === 0) {
+          return nextMilestone;
+        }
+      }
+    }
+    return null;
+  }
+
+  async updateProgress(tracker) {
+    for (const phase of Object.values(tracker.phases)) {
+      const completed = phase.milestones.filter(m => m.status === 'completed').length;
+      const total = phase.milestones.length;
+      phase.progress = Math.round((completed / total) * 100);
+      
+      if (phase.progress === 100) {
+        phase.status = 'completed';
+      } else if (completed > 0) {
+        phase.status = 'in_progress';
+      }
+    }
+  }
+
   async startMilestone(milestoneId) {
     const tracker = await this.loadTracker();
     const milestone = this.findMilestone(tracker, milestoneId);
@@ -640,4 +690,431 @@ if (!result) {
 }
 \`\`\`
 
-##
+## 🎯 Focus Areas for Current Milestone
+
+When implementing **${milestone.name}**, focus on:
+- Following the Moleculer microservices pattern
+- Implementing proper error handling and logging
+- Using the shared utilities and types
+- Adding comprehensive tests
+- Documenting API endpoints and methods
+
+Remember: This is part of the Think→Act→Respond pipeline architecture.
+`;
+
+    await fs.writeFile(path.join(this.contextDir, 'context.md'), contextContent);
+  }
+
+  async status() {
+    const tracker = await this.loadTracker();
+    
+    console.log(`\n📊 Project Status: ${tracker.project} v${tracker.version}`);
+    console.log(`🎯 Current Milestone: ${tracker.currentMilestone}\n`);
+    
+    for (const [phaseKey, phase] of Object.entries(tracker.phases)) {
+      console.log(`📋 ${phase.name} (${phase.progress}% complete)`);
+      
+      for (const milestone of phase.milestones) {
+        const statusIcon = milestone.status === 'completed' ? '✅' : 
+                          milestone.status === 'in_progress' ? '🚧' : '⭕';
+        const timeInfo = milestone.actualHours > 0 ? 
+                        ` (${milestone.actualHours}h/${milestone.estimatedHours}h)` : 
+                        ` (est. ${milestone.estimatedHours}h)`;
+        
+        console.log(`   ${statusIcon} ${milestone.id}: ${milestone.name}${timeInfo}`);
+      }
+      console.log('');
+    }
+  }
+}
+
+async function main() {
+  const tracker = new MilestoneTracker();
+  const [command, ...args] = process.argv.slice(2);
+
+  switch (command) {
+    case 'status':
+      await tracker.status();
+      break;
+    case 'start':
+      if (!args[0]) {
+        console.error('❌ Usage: npm run milestone:start <milestone-id>');
+        process.exit(1);
+      }
+      await tracker.startMilestone(args[0]);
+      break;
+    case 'complete':
+      if (!args[0]) {
+        console.error('❌ Usage: npm run milestone:complete <milestone-id> [actual-hours]');
+        process.exit(1);
+      }
+      await tracker.completeMilestone(args[0], parseInt(args[1]) || 0);
+      break;
+    default:
+      console.log('📋 Milestone Tracker Commands:');
+      console.log('  npm run milestone:status           - Show current progress');
+      console.log('  npm run milestone:start <id>       - Start a milestone');
+      console.log('  npm run milestone:complete <id> <hours> - Complete a milestone');
+  }
+}
+
+if (require.main === module) {
+  main().catch(console.error);
+}
+
+module.exports = MilestoneTracker;
+EOF
+    
+    chmod +x scripts/milestone-tracker.js
+    print_success "Milestone tracker script created!"
+}
+
+# Create Docker Compose configuration
+create_docker_compose() {
+    print_step "Creating Docker Compose configuration..."
+    
+    cat > docker-compose.dev.yml << 'EOF'
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: rhajaina-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: rhajaina
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongodb-init.js:/docker-entrypoint-initdb.d/mongodb-init.js:ro
+    networks:
+      - rhajaina-network
+
+  mongo-express:
+    image: mongo-express:1.0
+    container_name: rhajaina-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password
+      ME_CONFIG_MONGODB_URL: mongodb://admin:password@mongodb:27017/
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      - mongodb
+    networks:
+      - rhajaina-network
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: rhajaina-redis
+    restart: unless-stopped
+    command: redis-server --requirepass redispassword
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - rhajaina-network
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: rhajaina-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:redispassword
+    ports:
+      - "8082:8081"
+    depends_on:
+      - redis
+    networks:
+      - rhajaina-network
+
+  qdrant:
+    image: qdrant/qdrant:v1.7.3
+    container_name: rhajaina-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - rhajaina-network
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: rhajaina-nats
+    restart: unless-stopped
+    command: >
+      --cluster_name NATS
+      --cluster nats://0.0.0.0:6222
+      --http_port 8222
+      --port 4222
+      --js
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+      - "6222:6222"
+    networks:
+      - rhajaina-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+  qdrant_data:
+
+networks:
+  rhajaina-network:
+    driver: bridge
+EOF
+    
+    print_success "Docker Compose configuration created!"
+}
+
+# Create setup script
+create_setup_script() {
+    print_step "Creating development setup script..."
+    
+    cat > scripts/setup-dev.sh << 'EOF'
+#!/bin/bash
+
+set -e
+
+echo "🚀 Setting up Rhajaina development environment..."
+
+# Clean up any existing containers to avoid conflicts
+echo "🧹 Cleaning up existing containers..."
+docker-compose -f docker-compose.dev.yml down --remove-orphans 2>/dev/null || true
+docker system prune -f --volumes 2>/dev/null || true
+
+# Start services
+echo "📦 Starting Docker services..."
+docker-compose -f docker-compose.dev.yml up -d
+
+# Wait for services to be ready
+echo "⏳ Waiting for services to start..."
+sleep 10
+
+# Setup databases
+echo "🗄️ Setting up databases..."
+npm run db:setup
+
+# Update Copilot context
+echo "🤖 Updating GitHub Copilot context..."
+npm run copilot:context
+
+echo "✅ Development environment is ready!"
+echo ""
+echo "🌐 Access your services:"
+echo "  MongoDB Express: http://localhost:8081"
+echo "  Redis Commander: http://localhost:8082" 
+echo "  Qdrant Dashboard: http://localhost:6333/dashboard"
+echo "  NATS Monitoring: http://localhost:8222"
+echo ""
+echo "🎯 Start your first milestone:"
+echo "  npm run milestone:start M1.1"
+EOF
+    
+    chmod +x scripts/setup-dev.sh
+    print_success "Setup script created!"
+}
+
+# Create additional utility scripts
+create_utility_scripts() {
+    print_step "Creating utility scripts..."
+    
+    # Database setup script
+    cat > scripts/setup-databases.js << 'EOF'
+#!/usr/bin/env node
+
+const { MongoClient } = require('mongodb');
+const { createClient } = require('redis');
+
+async function setupMongoDB() {
+  const client = new MongoClient('mongodb://admin:password@localhost:27017?authSource=admin');
+  
+  try {
+    await client.connect();
+    console.log('📊 Connected to MongoDB');
+    
+    const db = client.db('rhajaina');
+    
+    // Create collections with indexes
+    await db.createCollection('conversations');
+    await db.collection('conversations').createIndex({ userId: 1, createdAt: -1 });
+    
+    await db.createCollection('messages'); 
+    await db.collection('messages').createIndex({ conversationId: 1, timestamp: 1 });
+    
+    await db.createCollection('users');
+    await db.collection('users').createIndex({ email: 1 }, { unique: true });
+    
+    console.log('✅ MongoDB collections and indexes created');
+  } catch (error) {
+    console.error('❌ MongoDB setup failed:', error.message);
+  } finally {
+    await client.close();
+  }
+}
+
+async function setupRedis() {
+  const client = createClient({
+    url: 'redis://:redispassword@localhost:6379'
+  });
+  
+  try {
+    await client.connect();
+    console.log('📊 Connected to Redis');
+    
+    await client.set('rhajaina:setup', 'complete');
+    console.log('✅ Redis setup complete');
+  } catch (error) {
+    console.error('❌ Redis setup failed:', error.message);
+  } finally {
+    await client.quit();
+  }
+}
+
+async function main() {
+  console.log('🗄️ Setting up databases...');
+  await setupMongoDB();
+  await setupRedis();
+  console.log('✅ Database setup complete!');
+}
+
+main().catch(console.error);
+EOF
+
+    # Health check script
+    cat > scripts/health-check.js << 'EOF'
+#!/usr/bin/env node
+
+const http = require('http');
+const { MongoClient } = require('mongodb');
+const { createClient } = require('redis');
+
+async function checkService(name, url) {
+  return new Promise((resolve) => {
+    const req = http.get(url, (res) => {
+      resolve({ name, status: 'healthy', code: res.statusCode });
+    });
+    
+    req.on('error', () => {
+      resolve({ name, status: 'unhealthy', error: 'Connection failed' });
+    });
+    
+    req.setTimeout(5000, () => {
+      resolve({ name, status: 'unhealthy', error: 'Timeout' });
+    });
+  });
+}
+
+async function checkMongoDB() {
+  try {
+    const client = new MongoClient('mongodb://admin:password@localhost:27017?authSource=admin');
+    await client.connect();
+    await client.close();
+    return { name: 'MongoDB', status: 'healthy' };
+  } catch (error) {
+    return { name: 'MongoDB', status: 'unhealthy', error: error.message };
+  }
+}
+
+async function checkRedis() {
+  try {
+    const client = createClient({ url: 'redis://:redispassword@localhost:6379' });
+    await client.connect();
+    await client.quit();
+    return { name: 'Redis', status: 'healthy' };
+  } catch (error) {
+    return { name: 'Redis', status: 'unhealthy', error: error.message };
+  }
+}
+
+async function main() {
+  console.log('🔍 Checking service health...\n');
+  
+  const checks = await Promise.all([
+    checkMongoDB(),
+    checkRedis(),
+    checkService('Qdrant', 'http://localhost:6333/'),
+    checkService('NATS', 'http://localhost:8222/'),
+    checkService('Mongo Express', 'http://localhost:8081/'),
+    checkService('Redis Commander', 'http://localhost:8082/')
+  ]);
+  
+  checks.forEach(check => {
+    const icon = check.status === 'healthy' ? '✅' : '❌';
+    console.log(`${icon} ${check.name}: ${check.status}`);
+    if (check.error) console.log(`   Error: ${check.error}`);
+  });
+  
+  const healthy = checks.filter(c => c.status === 'healthy').length;
+  console.log(`\n📊 ${healthy}/${checks.length} services healthy`);
+}
+
+main().catch(console.error);
+EOF
+
+    # Context update script
+    cat > scripts/update-copilot-context.js << 'EOF'
+#!/usr/bin/env node
+
+const MilestoneTracker = require('./milestone-tracker.js');
+
+async function main() {
+  const tracker = new MilestoneTracker();
+  const data = await tracker.loadTracker();
+  const milestone = tracker.findMilestone(data, data.currentMilestone);
+  
+  if (milestone) {
+    await tracker.updateCopilotContext(data, milestone);
+    console.log('✅ GitHub Copilot context updated for milestone: ' + data.currentMilestone);
+  } else {
+    console.error('❌ Could not find current milestone to update context: ' + data.currentMilestone);
+  }
+}
+
+main().catch(console.error);
+EOF
+
+    chmod +x scripts/*.js
+    print_success "Utility scripts created!"
+}
+
+# Main execution
+main() {
+    print_header
+    
+    check_directory
+    existing_project=$?
+    
+    if [ $existing_project -ne 0 ]; then
+        check_prerequisites
+        create_project_structure
+    fi
+    
+    create_package_json
+    create_env_config
+    create_milestone_tracker
+    create_milestone_script
+    create_docker_compose
+    create_setup_script
+    create_utility_scripts
+    
+    print_success "🎉 Rhajaina AI Chat setup complete!"
+    print_status "Next steps:"
+    echo "  1. Update .env with your API keys"
+    echo "  2. Run: npm run setup"
+    echo "  3. Run: npm run milestone:start M1.1"
+    echo "  4. Open VS Code with GitHub Copilot"
+    print_status "🚀 Happy coding!"
+}
+
+# Run main function
+main "$@"

@@ -1,75 +1,58 @@
 #!/usr/bin/env node
 
 const { MongoClient } = require('mongodb');
+const { createClient } = require('redis');
 
-async function setupDatabases() {
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://admin:password@localhost:27017/rhajaina?authSource=admin';
-  
-  console.log('🗄️  Setting up databases...');
+async function setupMongoDB() {
+  const client = new MongoClient('mongodb://admin:password@localhost:27017?authSource=admin');
   
   try {
-    const client = new MongoClient(mongoUri);
     await client.connect();
-    console.log('✅ Connected to MongoDB');
+    console.log('📊 Connected to MongoDB');
     
-    const db = client.db();
+    const db = client.db('rhajaina');
     
-    // Create collections
-    const collections = ['users', 'chats', 'messages', 'files', 'embeddings', 'tools'];
+    // Create collections with indexes
+    await db.createCollection('conversations');
+    await db.collection('conversations').createIndex({ userId: 1, createdAt: -1 });
     
-    for (const collectionName of collections) {
-      try {
-        await db.createCollection(collectionName);
-        console.log(`📄 Created collection: ${collectionName}`);
-      } catch (error) {
-        if (error.code === 48) {
-          console.log(`📄 Collection ${collectionName} already exists`);
-        } else {
-          throw error;
-        }
-      }
-    }
+    await db.createCollection('messages'); 
+    await db.collection('messages').createIndex({ conversationId: 1, timestamp: 1 });
     
-    // Create indexes
-    console.log('🔍 Creating indexes...');
-    
-    // Users collection indexes
+    await db.createCollection('users');
     await db.collection('users').createIndex({ email: 1 }, { unique: true });
-    await db.collection('users').createIndex({ username: 1 }, { unique: true });
     
-    // Chats collection indexes
-    await db.collection('chats').createIndex({ userId: 1 });
-    await db.collection('chats').createIndex({ updatedAt: -1 });
-    
-    // Messages collection indexes
-    await db.collection('messages').createIndex({ chatId: 1, createdAt: 1 });
-    await db.collection('messages').createIndex({ chatId: 1, createdAt: -1 });
-    
-    // Files collection indexes
-    await db.collection('files').createIndex({ userId: 1 });
-    await db.collection('files').createIndex({ uploadedAt: -1 });
-    await db.collection('files').createIndex({ 'metadata.type': 1 });
-    
-    // Embeddings collection indexes
-    await db.collection('embeddings').createIndex({ documentId: 1 });
-    await db.collection('embeddings').createIndex({ type: 1 });
-    
-    // Tools collection indexes
-    await db.collection('tools').createIndex({ name: 1 }, { unique: true });
-    await db.collection('tools').createIndex({ enabled: 1 });
-    
-    console.log('✅ Database setup completed successfully');
-    
-    await client.close();
-    
+    console.log('✅ MongoDB collections and indexes created');
   } catch (error) {
-    console.error('❌ Database setup failed:', error);
-    process.exit(1);
+    console.error('❌ MongoDB setup failed:', error.message);
+  } finally {
+    await client.close();
   }
 }
 
-if (require.main === module) {
-  setupDatabases();
+async function setupRedis() {
+  const client = createClient({
+    url: 'redis://:redispassword@localhost:6379'
+  });
+  
+  try {
+    await client.connect();
+    console.log('📊 Connected to Redis');
+    
+    await client.set('rhajaina:setup', 'complete');
+    console.log('✅ Redis setup complete');
+  } catch (error) {
+    console.error('❌ Redis setup failed:', error.message);
+  } finally {
+    await client.quit();
+  }
 }
 
-module.exports = setupDatabases;
+async function main() {
+  console.log('🗄️ Setting up databases...');
+  await setupMongoDB();
+  await setupRedis();
+  console.log('✅ Database setup complete!');
+}
+
+main().catch(console.error);
