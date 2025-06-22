@@ -1,21 +1,20 @@
 # Rhajaina AI Chat Application - GitHub Copilot Context
 
-## 🎯 Current Milestone: Core Types & Utilities
-**ID**: M1.1  
+## 🎯 Current Milestone: Moleculer Service Base
+**ID**: M1.2  
 **Status**: in_progress  
-**Description**: Define TypeScript types and shared utilities for the entire application
+**Description**: Create base service class and common service patterns
 
 ### 📋 Tasks to Complete:
-1. Create src/types/index.js with core type definitions
-2. Create src/utils/logger.js with Winston configuration
-3. Create src/utils/database.js with MongoDB connection utilities
-4. Create src/utils/redis.js with Redis client utilities
-5. Create src/utils/errors.js with standardized error classes
-6. Create src/utils/validation.js with Joi validation helpers
-7. Add comprehensive JSDoc documentation
+1. Create src/services/base.service.js with common service functionality
+2. Implement standardized action response format
+3. Add common middleware for logging and error handling
+4. Create service health check actions
+5. Add service discovery helpers
+6. Create tests for base service functionality
 
 ### 🎨 Implementation Context:
-Focus on creating reusable, well-documented utility functions that will be shared across all microservices. Use proper error handling patterns and ensure all utilities are stateless and testable.
+Build a robust base service that all other services will extend. Include common patterns like error handling, logging, health checks, and standardized response formats.
 
 ## 🏗️ Project Architecture
 
@@ -116,7 +115,7 @@ if (!result) {
 
 ## 🎯 Focus Areas for Current Milestone
 
-When implementing **Core Types & Utilities**, focus on:
+When implementing **Moleculer Service Base**, focus on:
 - Following the Moleculer microservices pattern
 - Implementing proper error handling and logging
 - Using the shared utilities and types
