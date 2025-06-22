@@ -11,6 +11,7 @@
     "milestone:status": "node scripts/milestone-tracker.js status",
     "milestone:start": "node scripts/milestone-tracker.js start",
     "milestone:complete": "node scripts/milestone-tracker.js complete",
+    "milestone:check": "node scripts/milestone-tracker.js check",
     "resume": "./scripts/resume-from-milestone.sh",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -36,6 +37,26 @@
     "typescript",
     "github-copilot"
   ],
+  "dependencies": {
+    "moleculer": "^0.14.29",
+    "moleculer-web": "^0.10.7",
+    "moleculer-db": "^0.8.22",
+    "moleculer-db-adapter-mongo": "^0.4.16",
+    "mongodb": "^6.8.0",
+    "@qdrant/js-client-rest": "^1.8.2",
+    "redis": "^4.6.14",
+    "nats": "^2.19.0",
+    "joi": "^17.11.0",
+    "winston": "^3.11.0",
+    "winston-daily-rotate-file": "^4.7.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.2"
+  },
   "devDependencies": {
     "jest": "^29.7.0",
     "eslint": "^8.55.0",
@@ -43,9 +64,7 @@
     "@typescript-eslint/parser": "^6.14.0",
     "prettier": "^3.1.1",
     "nodemon": "^3.0.2",
-    "supertest": "^6.3.3",
-    "mongodb": "^6.8.0",
-    "redis": "^4.6.14"
+    "supertest": "^6.3.3"
   },
   "engines": {
     "node": ">=18.0.0",
