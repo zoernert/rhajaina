@@ -1,5 +1,6 @@
-const winston = require('winston');
-const path = require('path');
+import winston from 'winston';
+import path from 'path';
+import fs from 'fs';
 
 // Define log format
 const logFormat = winston.format.combine(
@@ -11,6 +12,12 @@ const logFormat = winston.format.combine(
     return `${timestamp} [${level.toUpperCase()}]: ${stack || message}`;
   })
 );
+
+// Create logs directory if it doesn't exist
+const logsDir = path.join(__dirname, '../../logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
 
 // Create logger instance
 const logger = winston.createLogger({
@@ -32,7 +39,7 @@ const logger = winston.createLogger({
     
     // File transport for errors
     new winston.transports.File({
-      filename: path.join(__dirname, '../../logs/error.log'),
+      filename: path.join(logsDir, 'error.log'),
       level: 'error',
       maxsize: 5242880, // 5MB
       maxFiles: 5
@@ -40,7 +47,7 @@ const logger = winston.createLogger({
     
     // File transport for all logs
     new winston.transports.File({
-      filename: path.join(__dirname, '../../logs/combined.log'),
+      filename: path.join(logsDir, 'combined.log'),
       maxsize: 5242880, // 5MB
       maxFiles: 5
     })
@@ -49,23 +56,16 @@ const logger = winston.createLogger({
   // Handle uncaught exceptions
   exceptionHandlers: [
     new winston.transports.File({
-      filename: path.join(__dirname, '../../logs/exceptions.log')
+      filename: path.join(logsDir, 'exceptions.log')
     })
   ],
   
   // Handle unhandled promise rejections
   rejectionHandlers: [
     new winston.transports.File({
-      filename: path.join(__dirname, '../../logs/rejections.log')
+      filename: path.join(logsDir, 'rejections.log')
     })
   ]
 });
 
-// Create logs directory if it doesn't exist
-const fs = require('fs');
-const logsDir = path.join(__dirname, '../../logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
-
-module.exports = logger;
+export default logger;

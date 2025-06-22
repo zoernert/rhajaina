@@ -1,10 +1,28 @@
-const Joi = require('joi');
-const { ValidationError } = require('./errors');
+import Joi from 'joi';
+import { ValidationError as CustomValidationError } from './errors';
+
+interface ValidationOptions {
+  abortEarly?: boolean;
+  allowUnknown?: boolean;
+  stripUnknown?: boolean;
+}
+
+interface FileValidationOptions {
+  maxSize?: number;
+  allowedTypes?: string[];
+  required?: boolean;
+}
+
+interface FileObject {
+  size: number;
+  mimetype: string;
+  [key: string]: any;
+}
 
 /**
  * Common validation schemas
  */
-const schemas = {
+export const schemas = {
   // Basic types
   email: Joi.string().email().required(),
   password: Joi.string().min(8).pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]')).required(),
@@ -47,20 +65,23 @@ const schemas = {
     search: Joi.object({
       q: Joi.string().min(1).max(100).optional(),
       filter: Joi.object().optional(),
-      ...schemas.pagination.describe().keys
+      page: Joi.number().integer().min(1).default(1),
+      limit: Joi.number().integer().min(1).max(100).default(10),
+      sort: Joi.string().optional(),
+      order: Joi.string().valid('asc', 'desc').default('asc')
     })
   }
 };
 
 /**
- * Validation helper functions
+ * Validation helper functions for Moleculer services
  */
-const ValidationHelper = {
+export const ValidationHelper = {
   /**
    * Validate data against a Joi schema
    */
-  validate(data, schema, options = {}) {
-    const defaultOptions = {
+  validate<T = any>(data: any, schema: Joi.Schema, options: ValidationOptions = {}): T {
+    const defaultOptions: ValidationOptions = {
       abortEarly: false,
       allowUnknown: false,
       stripUnknown: true
@@ -71,17 +92,17 @@ const ValidationHelper = {
 
     if (error) {
       const errorMessage = error.details.map(detail => detail.message).join(', ');
-      const field = error.details[0]?.path?.join('.') || null;
-      throw new ValidationError(errorMessage, field);
+      const field = error.details[0]?.path?.join('.') || undefined;
+      throw new CustomValidationError(errorMessage, field);
     }
 
     return value;
   },
 
   /**
-   * Validate request body
+   * Validate action parameters for Moleculer services
    */
-  validateBody(data, schemaName) {
+  validateParams<T = any>(data: any, schemaName: string): T {
     const schema = this.getSchema(schemaName);
     return this.validate(data, schema);
   },
@@ -89,24 +110,24 @@ const ValidationHelper = {
   /**
    * Validate query parameters
    */
-  validateQuery(data, schemaName = 'pagination') {
+  validateQuery<T = any>(data: any, schemaName: string = 'pagination'): T {
     const schema = this.getSchema(schemaName);
     return this.validate(data, schema, { allowUnknown: true });
   },
 
   /**
-   * Validate URL parameters
+   * Validate using custom schema
    */
-  validateParams(data, customSchema) {
+  validateCustom<T = any>(data: any, customSchema: Joi.Schema): T {
     return this.validate(data, customSchema);
   },
 
   /**
    * Get schema by name
    */
-  getSchema(schemaName) {
+  getSchema(schemaName: string): Joi.Schema {
     const schemaParts = schemaName.split('.');
-    let schema = schemas;
+    let schema: any = schemas;
     
     for (const part of schemaParts) {
       schema = schema[part];
@@ -121,14 +142,14 @@ const ValidationHelper = {
   /**
    * Create custom validation schema
    */
-  createSchema(definition) {
+  createSchema(definition: Record<string, Joi.Schema>): Joi.ObjectSchema {
     return Joi.object(definition);
   },
 
   /**
    * Validate array of items
    */
-  validateArray(data, itemSchema, options = {}) {
+  validateArray<T = any>(data: any, itemSchema: Joi.Schema, options: ValidationOptions = {}): T[] {
     const arraySchema = Joi.array().items(itemSchema);
     return this.validate(data, arraySchema, options);
   },
@@ -136,7 +157,7 @@ const ValidationHelper = {
   /**
    * Validate file upload
    */
-  validateFile(file, options = {}) {
+  validateFile(file: FileObject | undefined, options: FileValidationOptions = {}): FileObject | undefined {
     const {
       maxSize = 5 * 1024 * 1024, // 5MB default
       allowedTypes = ['image/jpeg', 'image/png', 'image/gif'],
@@ -144,16 +165,16 @@ const ValidationHelper = {
     } = options;
 
     if (!file && required) {
-      throw new ValidationError('File is required');
+      throw new CustomValidationError('File is required');
     }
 
     if (file) {
       if (file.size > maxSize) {
-        throw new ValidationError(`File size exceeds maximum allowed size of ${maxSize} bytes`);
+        throw new CustomValidationError(`File size exceeds maximum allowed size of ${maxSize} bytes`);
       }
 
       if (!allowedTypes.includes(file.mimetype)) {
-        throw new ValidationError(`File type '${file.mimetype}' is not allowed`);
+        throw new CustomValidationError(`File type '${file.mimetype}' is not allowed`);
       }
     }
 
@@ -162,83 +183,61 @@ const ValidationHelper = {
 };
 
 /**
- * Express middleware for validation
+ * Moleculer service validation utilities
  */
-const validationMiddleware = {
+export const MoleculerValidation = {
   /**
-   * Validate request body
+   * Create Joi validation for Moleculer action parameters
+   * This converts Joi schema to Moleculer's fastest-validator format
    */
-  body(schemaName) {
-    return (req, res, next) => {
-      try {
-        req.body = ValidationHelper.validateBody(req.body, schemaName);
-        next();
-      } catch (error) {
-        next(error);
-      }
-    };
+  createParamsSchema(joiSchema: Joi.ObjectSchema): Record<string, any> {
+    // For now, return the Joi schema directly as Moleculer supports Joi
+    // In the future, you might want to convert to fastest-validator format
+    return joiSchema;
   },
 
   /**
-   * Validate query parameters
+   * Validate action context parameters
    */
-  query(schemaName = 'pagination') {
-    return (req, res, next) => {
-      try {
-        req.query = ValidationHelper.validateQuery(req.query, schemaName);
-        next();
-      } catch (error) {
-        next(error);
-      }
-    };
+  validateActionParams<T = any>(ctx: any, schemaName: string): T {
+    try {
+      return ValidationHelper.validateParams(ctx.params, schemaName);
+    } catch (error) {
+      // Re-throw as Moleculer validation error
+      throw new CustomValidationError((error as Error).message);
+    }
   },
 
   /**
-   * Validate URL parameters
+   * Create validation middleware for Moleculer actions
    */
-  params(customSchema) {
-    return (req, res, next) => {
-      try {
-        req.params = ValidationHelper.validateParams(req.params, customSchema);
-        next();
-      } catch (error) {
-        next(error);
-      }
-    };
-  },
-
-  /**
-   * Custom validation middleware
-   */
-  custom(validationFn) {
-    return (req, res, next) => {
-      try {
-        validationFn(req);
-        next();
-      } catch (error) {
-        next(error);
-      }
+  createValidator(schemaName: string) {
+    return (ctx: any) => {
+      ctx.params = ValidationHelper.validateParams(ctx.params, schemaName);
+      return ctx.params;
     };
   }
 };
 
 /**
- * Pre-defined parameter schemas
+ * Pre-defined parameter schemas for common operations
  */
-const paramSchemas = {
+export const paramSchemas = {
   id: Joi.object({
     id: schemas.mongoId.required()
   }),
   
   userId: Joi.object({
     userId: schemas.mongoId.required()
-  })
+  }),
+
+  // Moleculer service common schemas
+  pagination: schemas.pagination,
+  
+  search: schemas.query.search
 };
 
-module.exports = {
-  schemas,
-  ValidationHelper,
-  validationMiddleware,
-  paramSchemas,
-  Joi // Export Joi for custom schemas
-};
+// Export Joi for custom schemas
+export { Joi };
+
+export default ValidationHelper;
