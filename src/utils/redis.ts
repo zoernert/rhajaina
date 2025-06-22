@@ -1,5 +1,3 @@
-import logger from './logger';
-
 interface RedisConfig {
   host?: string;
   port?: number;
@@ -19,6 +17,14 @@ interface CacheInterface {
   isHealthy(): boolean;
   disconnect(): Promise<void>;
 }
+
+// Simple console logger for Redis utility
+const log = {
+  info: (message: string, ...args: any[]) => console.info(`[Redis] INFO: ${message}`, ...args),
+  warn: (message: string, ...args: any[]) => console.warn(`[Redis] WARN: ${message}`, ...args),
+  error: (message: string, ...args: any[]) => console.error(`[Redis] ERROR: ${message}`, ...args),
+  debug: (message: string, ...args: any[]) => console.debug(`[Redis] DEBUG: ${message}`, ...args)
+};
 
 // In-memory cache fallback for when Redis is not available
 class MemoryCache implements CacheInterface {
@@ -106,24 +112,24 @@ class RedisCache implements CacheInterface {
       });
 
       this.client.on('connect', () => {
-        logger.info('Redis client connected');
+        log.info('Redis client connected');
         this.isConnected = true;
       });
 
       this.client.on('error', (err: Error) => {
-        logger.error('Redis client error:', err);
+        log.error('Redis client error:', err);
         this.isConnected = false;
       });
 
       this.client.on('close', () => {
-        logger.info('Redis client disconnected');
+        log.info('Redis client disconnected');
         this.isConnected = false;
       });
 
       await this.client.connect();
       return this.client;
     } catch (error) {
-      logger.error('Failed to connect to Redis:', error);
+      log.error('Failed to connect to Redis:', error);
       throw error;
     }
   }
@@ -142,7 +148,7 @@ class RedisCache implements CacheInterface {
       const value = await this.client.get(key);
       return value ? JSON.parse(value) : null;
     } catch (error) {
-      logger.error(`Redis GET error for key ${key}:`, error);
+      log.error(`Redis GET error for key ${key}:`, error);
       throw error;
     }
   }
@@ -157,7 +163,7 @@ class RedisCache implements CacheInterface {
         await this.client.set(key, serializedValue);
       }
     } catch (error) {
-      logger.error(`Redis SET error for key ${key}:`, error);
+      log.error(`Redis SET error for key ${key}:`, error);
       throw error;
     }
   }
@@ -167,7 +173,7 @@ class RedisCache implements CacheInterface {
       if (!this.client) throw new Error('Redis client not connected');
       return await this.client.del(key);
     } catch (error) {
-      logger.error(`Redis DEL error for key ${key}:`, error);
+      log.error(`Redis DEL error for key ${key}:`, error);
       throw error;
     }
   }
@@ -177,7 +183,7 @@ class RedisCache implements CacheInterface {
       if (!this.client) throw new Error('Redis client not connected');
       return await this.client.exists(key);
     } catch (error) {
-      logger.error(`Redis EXISTS error for key ${key}:`, error);
+      log.error(`Redis EXISTS error for key ${key}:`, error);
       throw error;
     }
   }
@@ -187,7 +193,7 @@ class RedisCache implements CacheInterface {
       if (!this.client) throw new Error('Redis client not connected');
       return await this.client.expire(key, ttl);
     } catch (error) {
-      logger.error(`Redis EXPIRE error for key ${key}:`, error);
+      log.error(`Redis EXPIRE error for key ${key}:`, error);
       throw error;
     }
   }
@@ -197,7 +203,7 @@ class RedisCache implements CacheInterface {
       if (!this.client) throw new Error('Redis client not connected');
       return await this.client.keys(pattern);
     } catch (error) {
-      logger.error(`Redis KEYS error for pattern ${pattern}:`, error);
+      log.error(`Redis KEYS error for pattern ${pattern}:`, error);
       throw error;
     }
   }
@@ -207,7 +213,7 @@ class RedisCache implements CacheInterface {
       if (!this.client) throw new Error('Redis client not connected');
       return await this.client.flushdb();
     } catch (error) {
-      logger.error('Redis FLUSHDB error:', error);
+      log.error('Redis FLUSHDB error:', error);
       throw error;
     }
   }
@@ -217,7 +223,7 @@ class RedisCache implements CacheInterface {
       if (!this.client) throw new Error('Redis client not connected');
       return await this.client.ping();
     } catch (error) {
-      logger.error('Redis PING error:', error);
+      log.error('Redis PING error:', error);
       throw error;
     }
   }
@@ -247,10 +253,10 @@ export class CacheClient {
       await redisCache.connect(config);
       this.implementation = redisCache;
       this.usingRedis = true;
-      logger.info('Using Redis for caching');
+      log.info('Using Redis for caching');
     } catch (error) {
       // Fall back to memory cache
-      logger.warn('Redis not available, using in-memory cache fallback:', error);
+      log.warn('Redis not available, using in-memory cache fallback:', error);
       this.implementation = new MemoryCache();
       this.usingRedis = false;
     }
@@ -311,12 +317,12 @@ const cacheClient = new CacheClient();
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  logger.info('Closing cache connection...');
+  log.info('Closing cache connection...');
   await cacheClient.disconnect();
 });
 
 process.on('SIGTERM', async () => {
-  logger.info('Closing cache connection...');
+  log.info('Closing cache connection...');
   await cacheClient.disconnect();
 });
 
