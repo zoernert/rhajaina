@@ -1,22 +1,21 @@
 # Rhajaina AI Chat Application - GitHub Copilot Context
 
-## 🎯 Current Milestone: Development Environment Setup
+## 🎯 Current Milestone: Core Types & Utilities
 **ID**: M1.1  
-**Status**: not_started  
-**Description**: Set up complete development environment with all services and tools
+**Status**: in_progress  
+**Description**: Define TypeScript types and shared utilities for the entire application
 
 ### 📋 Tasks to Complete:
-1. Project structure initialization
-2. Docker Compose configuration for all services
-3. Database setup (MongoDB, Redis, Qdrant)
-4. Message broker setup (NATS)
-5. Development tool access (admin UIs)
-6. Health check implementation
-7. Basic logging and monitoring
-8. GitHub Copilot context configuration
+1. Create src/types/index.js with core type definitions
+2. Create src/utils/logger.js with Winston configuration
+3. Create src/utils/database.js with MongoDB connection utilities
+4. Create src/utils/redis.js with Redis client utilities
+5. Create src/utils/errors.js with standardized error classes
+6. Create src/utils/validation.js with Joi validation helpers
+7. Add comprehensive JSDoc documentation
 
 ### 🎨 Implementation Context:
-Setting up the foundation for a microservices architecture with Docker, databases, and monitoring tools.
+Focus on creating reusable, well-documented utility functions that will be shared across all microservices. Use proper error handling patterns and ensure all utilities are stateless and testable.
 
 ## 🏗️ Project Architecture
 
@@ -117,7 +116,7 @@ if (!result) {
 
 ## 🎯 Focus Areas for Current Milestone
 
-When implementing **Development Environment Setup**, focus on:
+When implementing **Core Types & Utilities**, focus on:
 - Following the Moleculer microservices pattern
 - Implementing proper error handling and logging
 - Using the shared utilities and types
