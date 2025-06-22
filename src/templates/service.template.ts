@@ -1,8 +1,8 @@
 import { ServiceSchema, Context, Errors } from 'moleculer';
 import { ApiResponse } from '../types';
-import createLogger from '../utils/logger';
+import Logger from '../utils/logger';
 
-const logger = createLogger('TemplateService');
+const logger = Logger('TemplateService');
 
 interface TemplateServiceSettings {
   // Service-specific settings
@@ -15,10 +15,9 @@ interface TemplateActionParams {
   options?: Record<string, any>;
 }
 
-interface ServiceMeta {
-  requestId?: string;
-  userId?: string;
-  [key: string]: any;
+interface TemplateServiceMethods {
+  processInput(input: string, options?: Record<string, any>): Promise<any>;
+  validateInput(input: string): boolean;
 }
 
 const TemplateService: ServiceSchema<TemplateServiceSettings> = {
@@ -33,10 +32,10 @@ const TemplateService: ServiceSchema<TemplateServiceSettings> = {
   dependencies: [],
 
   actions: {
-    async process(ctx: Context<TemplateActionParams, ServiceMeta>): Promise<ApiResponse> {
+    async process(ctx: Context<TemplateActionParams>): Promise<ApiResponse> {
       try {
         const { input, options = {} } = ctx.params;
-        const requestId = ctx.meta.requestId || this.generateRequestId();
+        const requestId = ctx.meta.requestId as string || this.generateRequestId();
         
         logger.info('Template action started', {
           requestId,
