@@ -1,8 +1,8 @@
 import Redis from 'ioredis';
 import { DatabaseConfig, DatabaseConnection } from './types';
-import Logger from '../utils/logger';
+import createLogger from '../utils/logger';
 
-const logger = Logger('Redis');
+const logger = createLogger('Redis');
 
 export class RedisConnection implements DatabaseConnection {
   private client: Redis | null = null;

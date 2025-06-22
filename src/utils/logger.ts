@@ -1,71 +1,52 @@
-import winston from 'winston';
-import path from 'path';
-import fs from 'fs';
-
-// Define log format
-const logFormat = winston.format.combine(
-  winston.format.timestamp({
-    format: 'YYYY-MM-DD HH:mm:ss'
-  }),
-  winston.format.errors({ stack: true }),
-  winston.format.printf(({ level, message, timestamp, stack }) => {
-    return `${timestamp} [${level.toUpperCase()}]: ${stack || message}`;
-  })
-);
-
-// Create logs directory if it doesn't exist
-const logsDir = path.join(__dirname, '../../logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
+export interface LogLevel {
+  ERROR: number;
+  WARN: number;
+  INFO: number;
+  DEBUG: number;
 }
 
-// Create logger instance
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: logFormat,
-  transports: [
-    // Console transport with colorization
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.timestamp({
-          format: 'YYYY-MM-DD HH:mm:ss'
-        }),
-        winston.format.printf(({ level, message, timestamp, stack }) => {
-          return `${timestamp} [${level}]: ${stack || message}`;
-        })
-      )
-    }),
-    
-    // File transport for errors
-    new winston.transports.File({
-      filename: path.join(logsDir, 'error.log'),
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    }),
-    
-    // File transport for all logs
-    new winston.transports.File({
-      filename: path.join(logsDir, 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    })
-  ],
-  
-  // Handle uncaught exceptions
-  exceptionHandlers: [
-    new winston.transports.File({
-      filename: path.join(logsDir, 'exceptions.log')
-    })
-  ],
-  
-  // Handle unhandled promise rejections
-  rejectionHandlers: [
-    new winston.transports.File({
-      filename: path.join(logsDir, 'rejections.log')
-    })
-  ]
-});
+export const LOG_LEVELS: LogLevel = {
+  ERROR: 0,
+  WARN: 1,
+  INFO: 2,
+  DEBUG: 3
+};
 
-export default logger;
+export class Logger {
+  private serviceName: string;
+  private level: number;
+
+  constructor(serviceName: string, level: number = LOG_LEVELS.INFO) {
+    this.serviceName = serviceName;
+    this.level = level;
+  }
+
+  error(message: string, ...args: any[]): void {
+    if (this.level >= LOG_LEVELS.ERROR) {
+      console.error(`[${this.serviceName}] ERROR:`, message, ...args);
+    }
+  }
+
+  warn(message: string, ...args: any[]): void {
+    if (this.level >= LOG_LEVELS.WARN) {
+      console.warn(`[${this.serviceName}] WARN:`, message, ...args);
+    }
+  }
+
+  info(message: string, ...args: any[]): void {
+    if (this.level >= LOG_LEVELS.INFO) {
+      console.info(`[${this.serviceName}] INFO:`, message, ...args);
+    }
+  }
+
+  debug(message: string, ...args: any[]): void {
+    if (this.level >= LOG_LEVELS.DEBUG) {
+      console.debug(`[${this.serviceName}] DEBUG:`, message, ...args);
+    }
+  }
+}
+
+// Create logger factory function
+const createLogger = (serviceName: string): Logger => new Logger(serviceName);
+
+export default createLogger;

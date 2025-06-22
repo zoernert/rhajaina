@@ -1,4 +1,5 @@
 import { ApiResponse } from '../types/response';
+import { ResponseBuilder } from './response-builder';
 
 export class ErrorHandler {
   static handle(error: unknown): ApiResponse {

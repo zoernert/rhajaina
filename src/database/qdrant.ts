@@ -1,8 +1,8 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { DatabaseConfig, DatabaseConnection } from './types';
-import Logger from '../utils/logger';
+import createLogger from '../utils/logger';
 
-const logger = Logger('Qdrant');
+const logger = createLogger('Qdrant');
 
 export interface QdrantPoint {
   id: string | number;
@@ -30,8 +30,8 @@ export class QdrantConnection implements DatabaseConnection {
         url: `http://${this.config.host}:${this.config.port}`,
       });
 
-      // Test connection by getting cluster info
-      await this.client.healthCheck();
+      // Test connection by getting collections
+      await this.client.getCollections();
       logger.info('Qdrant connected successfully');
     } catch (error) {
       logger.error('Qdrant connection failed:', error);
@@ -48,7 +48,7 @@ export class QdrantConnection implements DatabaseConnection {
   async healthCheck(): Promise<boolean> {
     try {
       if (!this.client) return false;
-      await this.client.healthCheck();
+      await this.client.getCollections();
       return true;
     } catch (error) {
       logger.error('Qdrant health check failed:', error);

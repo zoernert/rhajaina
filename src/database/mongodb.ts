@@ -1,8 +1,8 @@
 import { MongoClient, Db, Collection } from 'mongodb';
 import { DatabaseConfig, DatabaseConnection } from './types';
-import Logger from '../utils/logger';
+import createLogger from '../utils/logger';
 
-const logger = Logger('MongoDB');
+const logger = createLogger('MongoDB');
 
 export class MongoDBConnection implements DatabaseConnection {
   private client: MongoClient | null = null;
