@@ -1,4 +1,13 @@
-# Rhajaina AI Chat Application - GitHub Copilot Context
+# 🚨 CRITICAL REQUIREMENTS - READ FIRST
+
+## MANDATORY TECHNOLOGY STACK
+- **ALWAYS USE TYPESCRIPT** (.ts files, never .js for ANY new code)
+- **MONGODB ONLY** (never PostgreSQL, MySQL, or other databases)
+- **MOLECULER MICROSERVICES** (follow templates exactly)
+- **REDIS FOR CACHING** (never Memcached or other cache solutions)
+- **QDRANT FOR VECTORS** (never Pinecone, Weaviate, or other vector DBs)
+
+## 🎯 Rhajaina Foundation Project Context
 
 ## 🎯 Current Milestone: Database Connections
 **ID**: M1.3  
@@ -78,6 +87,107 @@ module.exports = {
   // Graceful shutdown
   gracefulShutdown: async () => {}
 };
+```
+
+### 🔧 TYPESCRIPT SERVICE TEMPLATE - USE EXACTLY
+
+```typescript
+import { ServiceSchema, Context } from 'moleculer';
+import { MongoDBConnection } from '../database/mongodb';
+import { RedisConnection } from '../database/redis';
+import { Logger } from '../utils/logger';
+
+const logger = new Logger('ServiceName');
+
+interface ServiceSettings {
+  // Define service-specific settings
+}
+
+interface ServiceMethods {
+  // Define service methods
+}
+
+const ServiceName: ServiceSchema<ServiceSettings> = {
+  name: 'service-name',
+  version: '1.0.0',
+  
+  settings: {
+    // Service settings
+  },
+
+  dependencies: [],
+
+  actions: {
+    async exampleAction(ctx: Context<any>) {
+      try {
+        // Implementation
+        return { success: true };
+      } catch (error) {
+        logger.error('Action failed:', error);
+        throw error;
+      }
+    },
+  },
+
+  events: {
+    'example.event': {
+      async handler(ctx: Context<any>) {
+        // Event handler
+      },
+    },
+  },
+
+  methods: {
+    // Service methods
+  } as ServiceMethods,
+
+  async started() {
+    logger.info(`${this.name} service started`);
+  },
+
+  async stopped() {
+    logger.info(`${this.name} service stopped`);
+  },
+};
+
+export default ServiceName;
+```
+
+### 📊 DATABASE OPERATION PATTERNS
+
+#### MongoDB Operations (ALWAYS USE THESE PATTERNS)
+```typescript
+// Get collection
+const collection = mongoConnection.getCollection<DocumentType>('collection-name');
+
+// Insert document
+await collection.insertOne(document);
+
+// Find documents
+const results = await collection.find(query).toArray();
+
+// Update document
+await collection.updateOne(filter, { $set: update });
+```
+
+#### Redis Caching (ALWAYS USE THESE PATTERNS)
+```typescript
+// Cache data
+await redisConnection.set('cache:key', JSON.stringify(data), 3600);
+
+// Get cached data
+const cached = await redisConnection.get('cache:key');
+const data = cached ? JSON.parse(cached) : null;
+```
+
+#### Error Handling (ALWAYS USE THIS PATTERN)
+```typescript
+try {
+  // Operation
+} catch (error) {
+  logger.error('Operation failed:', error);
+  throw new Errors.MoleculerError('Operation failed', 500, 'OPERATION_FAILED', { error: error.message });
+}
 ```
 
 ### 🎨 Implementation Context:
